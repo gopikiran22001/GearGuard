@@ -1,0 +1,25 @@
+{
+  "name": "gearguard",
+  "version": "1.0.0",
+  "description": "A complete, production-ready MERN stack application for managing equipment maintenance, teams, and service requests with full backend-frontend integration.",
+  "main": "index.js",
+  "scripts": {
+    "server": "nodemon server/server.js",
+    "client": "npm run dev --prefix client",
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "npm install --prefix client && cd server && npm install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gopikiran22001/GearGuard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/gopikiran22001/GearGuard/issues"
+  },
+  "homepage": "https://github.com/gopikiran22001/GearGuard#readme"
+}

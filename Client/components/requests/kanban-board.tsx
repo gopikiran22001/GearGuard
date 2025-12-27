@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { RequestCard } from "./request-card"
 import type { MaintenanceRequest, RequestStage } from "@/lib/types"
@@ -10,16 +9,17 @@ import { cn } from "@/lib/utils"
 interface KanbanBoardProps {
   requests: MaintenanceRequest[]
   onStageChange: (requestId: string, newStage: RequestStage) => void
+  canUpdateStatus?: boolean
 }
 
-const columns: { id: RequestStage; title: string; color: string }[] = [
-  { id: "new", title: "New", color: "bg-chart-2" },
-  { id: "in-progress", title: "In Progress", color: "bg-accent" },
-  { id: "repaired", title: "Repaired", color: "bg-primary" },
-  { id: "scrap", title: "Scrap", color: "bg-destructive" },
+const columns: { id: RequestStage; title: string; color: string; bgColor: string }[] = [
+  { id: "new", title: "New", color: "bg-status-new", bgColor: "bg-status-new/10" },
+  { id: "in-progress", title: "In Progress", color: "bg-status-in-progress", bgColor: "bg-status-in-progress/10" },
+  { id: "repaired", title: "Repaired", color: "bg-status-repaired", bgColor: "bg-status-repaired/10" },
+  { id: "scrap", title: "Scrap", color: "bg-status-scrap", bgColor: "bg-status-scrap/10" },
 ]
 
-export function KanbanBoard({ requests, onStageChange }: KanbanBoardProps) {
+export function KanbanBoard({ requests, onStageChange, canUpdateStatus = true }: KanbanBoardProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<RequestStage | null>(null)
 
@@ -45,7 +45,7 @@ export function KanbanBoard({ requests, onStageChange }: KanbanBoardProps) {
 
   const handleDrop = (e: React.DragEvent, columnId: RequestStage) => {
     e.preventDefault()
-    if (draggedId) {
+    if (draggedId && canUpdateStatus) {
       onStageChange(draggedId, columnId)
     }
     setDraggedId(null)
@@ -53,34 +53,47 @@ export function KanbanBoard({ requests, onStageChange }: KanbanBoardProps) {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[600px]">
       {columns.map((column) => {
         const columnRequests = requests.filter((r) => r.stage === column.id)
+        const isScrapColumn = column.id === 'scrap'
 
         return (
           <div
             key={column.id}
             className={cn(
-              "flex flex-col rounded-lg border border-border bg-card/50 p-4 transition-colors",
+              "bg-card rounded-lg border border-border shadow-sm transition-colors",
               dragOverColumn === column.id && "border-primary bg-primary/5",
+              isScrapColumn && "opacity-75 bg-muted"
             )}
             onDragOver={(e) => handleDragOver(e, column.id)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, column.id)}
           >
-            {/* Column Header */}
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={cn("h-3 w-3 rounded-full", column.color)} />
-                <h3 className="font-semibold text-foreground">{column.title}</h3>
+
+            <div className={cn(
+              "p-4 border-b border-border",
+              isScrapColumn && "border-border"
+            )}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-3 h-3 rounded-full", column.color)} />
+                  <h3 className={cn(
+                    "font-semibold",
+                    isScrapColumn ? "text-muted-foreground" : "text-foreground"
+                  )}>{column.title}</h3>
+                </div>
+                <span className={cn(
+                  "text-xs font-medium px-2 py-1 rounded-full",
+                  isScrapColumn ? "bg-muted text-muted-foreground" : "bg-muted text-muted-foreground"
+                )}>
+                  {columnRequests.length}
+                </span>
               </div>
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-xs font-medium">
-                {columnRequests.length}
-              </span>
             </div>
 
-            {/* Cards */}
-            <div className="flex-1 space-y-3">
+
+            <div className="p-4 space-y-3">
               {columnRequests.length === 0 ? (
                 <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border">
                   <p className="text-sm text-muted-foreground">No requests</p>
@@ -89,12 +102,16 @@ export function KanbanBoard({ requests, onStageChange }: KanbanBoardProps) {
                 columnRequests.map((request) => (
                   <div
                     key={request.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, request.id)}
+                    draggable={canUpdateStatus}
+                    onDragStart={(e) => canUpdateStatus && handleDragStart(e, request.id)}
                     onDragEnd={handleDragEnd}
-                    className={cn("cursor-grab active:cursor-grabbing", draggedId === request.id && "opacity-50")}
+                    className={cn(
+                      canUpdateStatus ? "cursor-grab active:cursor-grabbing" : "cursor-default",
+                      "transition-opacity",
+                      draggedId === request.id && "opacity-50"
+                    )}
                   >
-                    <RequestCard request={request} />
+                    <RequestCard request={request} isScrap={isScrapColumn} />
                   </div>
                 ))
               )}

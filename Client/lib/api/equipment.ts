@@ -4,6 +4,7 @@ export interface Equipment {
     _id: string;
     name: string;
     serialNumber: string;
+    category: 'MACHINERY' | 'VEHICLE' | 'COMPUTER' | 'TOOL' | 'OTHER';
     purchaseDate: string;
     warrantyExpiry: string;
     location: string;
@@ -18,8 +19,16 @@ export interface Equipment {
         name: string;
         specialization: string;
     };
+    defaultTechnician?: {
+        _id: string;
+        name: string;
+        email: string;
+    };
     status: 'ACTIVE' | 'SCRAPPED';
+    scrapReason?: string;
+    scrapDate?: string;
     specifications?: string;
+    openRequestsCount?: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -27,12 +36,14 @@ export interface Equipment {
 export interface CreateEquipmentData {
     name: string;
     serialNumber: string;
+    category: 'MACHINERY' | 'VEHICLE' | 'COMPUTER' | 'TOOL' | 'OTHER';
     purchaseDate: string;
     warrantyExpiry: string;
     location: string;
     department: string;
     assignedEmployee: string;
     maintenanceTeam: string;
+    defaultTechnician?: string;
     specifications?: string;
 }
 
@@ -42,10 +53,11 @@ export interface EquipmentFilters {
     department?: string;
     status?: 'ACTIVE' | 'SCRAPPED';
     assignedEmployee?: string;
+    category?: string;
 }
 
 export const equipmentAPI = {
-    // Get all equipment with optional filters
+
     getAll: async (filters?: EquipmentFilters): Promise<{ success: boolean; equipments: Equipment[] }> => {
         const params = new URLSearchParams();
         if (filters?.department) params.append('department', filters.department);
@@ -56,33 +68,33 @@ export const equipmentAPI = {
         return response.data;
     },
 
-    // Get equipment by ID
+
     getById: async (id: string): Promise<{ success: boolean; equipment: Equipment }> => {
         const response = await axiosInstance.get(`/equipment/${id}`);
         return response.data;
     },
 
-    // Create new equipment
+
     create: async (data: CreateEquipmentData): Promise<{ success: boolean; equipment: Equipment }> => {
         const response = await axiosInstance.post('/equipment', data);
         return response.data;
     },
 
-    // Update equipment
+
     update: async (id: string, data: UpdateEquipmentData): Promise<{ success: boolean; equipment: Equipment }> => {
         const response = await axiosInstance.put(`/equipment/${id}`, data);
         return response.data;
     },
 
-    // Delete equipment
+
     delete: async (id: string): Promise<{ success: boolean; message: string }> => {
         const response = await axiosInstance.delete(`/equipment/${id}`);
         return response.data;
     },
 
-    // Mark equipment as scrapped
-    scrap: async (id: string): Promise<{ success: boolean; equipment: Equipment; message: string }> => {
-        const response = await axiosInstance.patch(`/equipment/${id}/scrap`);
+
+    scrap: async (id: string, reason?: string): Promise<{ success: boolean; equipment: Equipment; message: string }> => {
+        const response = await axiosInstance.patch(`/equipment/${id}/scrap`, { reason });
         return response.data;
     },
 };

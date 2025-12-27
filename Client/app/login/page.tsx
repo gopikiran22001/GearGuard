@@ -24,7 +24,7 @@ export default function LoginPage() {
         try {
             await login(formData);
         } catch (err) {
-            // Error is handled by context
+
         }
     };
 
@@ -36,7 +36,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-muted p-4">
             <Card className="w-full max-w-md">
                 <CardHeader className="space-y-1">
                     <CardTitle className="text-2xl font-bold text-center">Welcome to GearGuard</CardTitle>
@@ -81,7 +81,7 @@ export default function LoginPage() {
                         </div>
                     </CardContent>
 
-                    <CardFooter className="flex flex-col space-y-4">
+                    <CardFooter className="flex flex-col space-y-4 pt-6">
                         <Button
                             type="submit"
                             className="w-full"

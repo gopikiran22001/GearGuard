@@ -28,13 +28,13 @@ export default function RegisterPage() {
         clearError();
         setValidationError('');
 
-        // Validate passwords match
+
         if (formData.password !== formData.confirmPassword) {
             setValidationError('Passwords do not match');
             return;
         }
 
-        // Validate password length
+
         if (formData.password.length < 6) {
             setValidationError('Password must be at least 6 characters');
             return;
@@ -44,7 +44,7 @@ export default function RegisterPage() {
             const { confirmPassword, ...registerData } = formData;
             await register(registerData);
         } catch (err) {
-            // Error is handled by context
+
         }
     };
 
@@ -63,7 +63,7 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-muted p-4">
             <Card className="w-full max-w-md">
                 <CardHeader className="space-y-1">
                     <CardTitle className="text-2xl font-bold text-center">Create Account</CardTitle>
@@ -165,7 +165,7 @@ export default function RegisterPage() {
                         </div>
                     </CardContent>
 
-                    <CardFooter className="flex flex-col space-y-4">
+                    <CardFooter className="flex flex-col space-y-4 pt-6">
                         <Button
                             type="submit"
                             className="w-full"

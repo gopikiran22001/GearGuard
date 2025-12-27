@@ -4,226 +4,264 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, CalendarIcon, Wrench } from "lucide-react"
-import type { MaintenanceRequest } from "@/lib/types"
-import { getEquipmentById, getTechnicianById, getTeamById } from "@/lib/mock-data"
-import { cn } from "@/lib/utils"
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 
-interface MaintenanceCalendarProps {
-  requests: MaintenanceRequest[]
-  onDateClick: (date: Date) => void
+interface CalendarEvent {
+  id: string
+  title: string
+  date: string
+  status: 'scheduled' | 'completed' | 'in-progress' | 'overdue'
+  equipment: string
 }
 
-export function MaintenanceCalendar({ requests, onDateClick }: MaintenanceCalendarProps) {
+interface CalendarProps {
+  events?: CalendarEvent[]
+  onDateClick?: (date: Date) => void
+  onEventClick?: (event: CalendarEvent) => void
+}
+
+export function MaintenanceCalendar({ events = [], onDateClick, onEventClick }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
-
-  const year = currentDate.getFullYear()
-  const month = currentDate.getMonth()
-
-  const firstDayOfMonth = new Date(year, month, 1)
-  const lastDayOfMonth = new Date(year, month + 1, 0)
-  const startingDayOfWeek = firstDayOfMonth.getDay()
-  const daysInMonth = lastDayOfMonth.getDate()
-
-  const prevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1))
+  
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ]
+  
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+    const startingDayOfWeek = firstDay.getDay()
+    
+    const days = []
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null)
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(day)
+    }
+    
+    return days
   }
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1))
+  
+  const getEventsForDate = (day: number) => {
+    if (!day) return []
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    return events.filter(event => event.date === dateStr)
   }
-
-  const goToToday = () => {
-    setCurrentDate(new Date())
+  
+  const getEventColor = (status: string) => {
+    switch (status) {
+      case 'scheduled': return 'bg-blue-100 text-blue-800'
+      case 'completed': return 'bg-green-100 text-green-800'
+      case 'in-progress': return 'bg-orange-100 text-orange-800'
+      case 'overdue': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
   }
-
-  const getRequestsForDate = (day: number): MaintenanceRequest[] => {
-    const date = new Date(year, month, day)
-    return requests.filter((request) => {
-      if (!request.scheduledDate) return false
-      const requestDate = new Date(request.scheduledDate)
-      return (
-        requestDate.getDate() === date.getDate() &&
-        requestDate.getMonth() === date.getMonth() &&
-        requestDate.getFullYear() === date.getFullYear()
-      )
+  
+  const getStatusDot = (status: string) => {
+    switch (status) {
+      case 'scheduled': return 'bg-blue-500'
+      case 'completed': return 'bg-green-500'
+      case 'in-progress': return 'bg-orange-500'
+      case 'overdue': return 'bg-red-500'
+      default: return 'bg-gray-500'
+    }
+  }
+  
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev)
+      if (direction === 'prev') {
+        newDate.setMonth(prev.getMonth() - 1)
+      } else {
+        newDate.setMonth(prev.getMonth() + 1)
+      }
+      return newDate
     })
   }
-
-  const isToday = (day: number): boolean => {
-    const today = new Date()
-    return day === today.getDate() && month === today.getMonth() && year === today.getFullYear()
+  
+  const handleDateClick = (day: number) => {
+    if (!day) return
+    const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+    onDateClick?.(clickedDate)
   }
-
-  const days = []
-  for (let i = 0; i < startingDayOfWeek; i++) {
-    days.push(null)
-  }
-  for (let i = 1; i <= daysInMonth; i++) {
-    days.push(i)
-  }
-
-  const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-
+  
+  const days = getDaysInMonth(currentDate)
+  
   return (
-    <Card className="bg-card">
-      <CardContent className="p-6">
-        {/* Calendar Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-foreground">
-              {currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-            </h2>
-            <Button variant="outline" size="sm" onClick={goToToday}>
-              Today
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={prevMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={nextMonth}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Preventive Maintenance Calendar</h1>
+          <p className="text-gray-600 mt-1">Schedule and track preventive maintenance tasks</p>
         </div>
-
-        {/* Week Days Header */}
-        <div className="mb-2 grid grid-cols-7 gap-1">
-          {weekDays.map((day) => (
-            <div key={day} className="py-2 text-center text-sm font-medium text-muted-foreground">
-              {day}
-            </div>
-          ))}
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="font-semibold text-gray-900 px-4">
+            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+          </span>
+          <Button variant="outline" size="sm" onClick={() => navigateMonth('next')}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button className="bg-blue-600 hover:bg-blue-700 ml-4">
+            <Plus className="h-4 w-4 mr-2" />
+            Schedule Task
+          </Button>
         </div>
+      </div>
 
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((day, index) => {
-            if (day === null) {
-              return <div key={`empty-${index}`} className="min-h-[120px] rounded-lg bg-secondary/30 p-2" />
-            }
-
-            const dayRequests = getRequestsForDate(day)
-            const today = isToday(day)
-
-            return (
-              <div
-                key={day}
-                className={cn(
-                  "min-h-[120px] cursor-pointer rounded-lg border border-border p-2 transition-colors hover:border-primary/50 hover:bg-secondary/50",
-                  today && "border-primary bg-primary/5",
-                )}
-                onClick={() => onDateClick(new Date(year, month, day))}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={cn("text-sm font-medium", today ? "text-primary" : "text-foreground", "tabular-nums")}
-                  >
-                    {day}
-                  </span>
-                  {dayRequests.length > 0 && (
-                    <Badge variant="secondary" className="h-5 w-5 p-0 flex items-center justify-center text-xs">
-                      {dayRequests.length}
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="mt-2 space-y-1">
-                  {dayRequests.slice(0, 3).map((request) => {
-                    const team = getTeamById(request.maintenanceTeamId)
-                    return (
-                      <div
-                        key={request.id}
-                        className={cn(
-                          "rounded px-1.5 py-0.5 text-xs truncate",
-                          request.type === "preventive" ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent",
-                        )}
-                        title={`${request.subject} - ${team?.name}`}
-                      >
-                        {request.subject}
-                      </div>
-                    )
-                  })}
-                  {dayRequests.length > 3 && (
-                    <p className="text-xs text-muted-foreground">+{dayRequests.length - 3} more</p>
-                  )}
-                </div>
+      {/* Calendar Grid */}
+      <Card className="bg-white shadow-sm border border-gray-200">
+        <CardContent className="p-6">
+          {/* Calendar Header */}
+          <div className="grid grid-cols-7 gap-px mb-4">
+            {daysOfWeek.map((day) => (
+              <div key={day} className="p-3 text-center text-sm font-medium text-gray-600 bg-gray-50 rounded-lg">
+                {day}
               </div>
-            )
-          })}
-        </div>
-
-        {/* Legend */}
-        <div className="mt-6 flex items-center gap-6 border-t border-border pt-4">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-primary/20" />
-            <span className="text-sm text-muted-foreground">Preventive</span>
+            ))}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-accent/20" />
-            <span className="text-sm text-muted-foreground">Corrective</span>
-          </div>
-        </div>
 
-        {/* Upcoming Maintenance List */}
-        <div className="mt-6 border-t border-border pt-6">
-          <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
-            <CalendarIcon className="h-4 w-4" />
-            Upcoming Scheduled Maintenance
-          </h3>
-          <div className="space-y-3">
-            {requests
-              .filter((r) => r.scheduledDate && new Date(r.scheduledDate) >= new Date())
-              .sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime())
-              .slice(0, 5)
-              .map((request) => {
-                const equipment = getEquipmentById(request.equipmentId)
-                const technician = request.assignedTechnicianId ? getTechnicianById(request.assignedTechnicianId) : null
-                const team = getTeamById(request.maintenanceTeamId)
-
-                return (
-                  <div
-                    key={request.id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "flex h-10 w-10 items-center justify-center rounded-lg",
-                          request.type === "preventive" ? "bg-primary/10" : "bg-accent/10",
+          {/* Calendar Body */}
+          <div className="grid grid-cols-7 gap-px">
+            {days.map((day, index) => {
+              const dayEvents = getEventsForDate(day)
+              const hasEvents = dayEvents.length > 0
+              
+              return (
+                <div 
+                  key={index}
+                  className={`h-24 p-2 rounded-lg transition-colors cursor-pointer ${
+                    day 
+                      ? 'bg-white border border-gray-100 hover:bg-gray-50' 
+                      : 'bg-gray-50'
+                  }`}
+                  onClick={() => handleDateClick(day)}
+                >
+                  {day && (
+                    <>
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-sm font-medium text-gray-900">{day}</span>
+                        {hasEvents && (
+                          <div className="flex gap-1">
+                            {dayEvents.slice(0, 3).map((event, i) => (
+                              <div 
+                                key={i} 
+                                className={`w-2 h-2 rounded-full ${getStatusDot(event.status)}`}
+                              />
+                            ))}
+                          </div>
                         )}
-                      >
-                        <Wrench
-                          className={cn("h-5 w-5", request.type === "preventive" ? "text-primary" : "text-accent")}
-                        />
                       </div>
-                      <div>
-                        <p className="font-medium text-foreground">{request.subject}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {equipment?.name} • {team?.name}
-                        </p>
+                      
+                      {/* Events for this day */}
+                      <div className="space-y-1">
+                        {dayEvents.slice(0, 2).map((event) => (
+                          <div 
+                            key={event.id}
+                            className={`text-xs px-2 py-1 rounded truncate cursor-pointer ${getEventColor(event.status)}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onEventClick?.(event)
+                            }}
+                          >
+                            {event.title}
+                          </div>
+                        ))}
+                        {dayEvents.length > 2 && (
+                          <div className="text-xs text-gray-500 px-2">
+                            +{dayEvents.length - 2} more
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-foreground">
-                        {new Date(request.scheduledDate!).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </p>
-                      <p className="text-sm text-muted-foreground">{technician?.name || "Unassigned"}</p>
-                    </div>
-                  </div>
-                )
-              })}
-
-            {requests.filter((r) => r.scheduledDate && new Date(r.scheduledDate) >= new Date()).length === 0 && (
-              <p className="text-center text-muted-foreground py-4">No upcoming scheduled maintenance.</p>
-            )}
+                    </>
+                  )}
+                </div>
+              )
+            })}
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Legend */}
+      <Card className="bg-white shadow-sm border border-gray-200">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">Scheduled</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">Completed</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">In Progress</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">Overdue</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// Sample events for demonstration
+const sampleEvents: CalendarEvent[] = [
+  {
+    id: "1",
+    title: "AC Maintenance",
+    date: "2024-12-15",
+    status: "scheduled",
+    equipment: "AC Unit #AC-001"
+  },
+  {
+    id: "2", 
+    title: "Generator Check",
+    date: "2024-12-22",
+    status: "completed",
+    equipment: "Generator #GEN-003"
+  },
+  {
+    id: "3",
+    title: "Elevator Service",
+    date: "2024-12-30",
+    status: "scheduled",
+    equipment: "Elevator #ELV-002"
+  },
+  {
+    id: "4",
+    title: "Fire System",
+    date: "2024-12-30", 
+    status: "in-progress",
+    equipment: "Fire System #FS-001"
+  }
+]
+
+export function CalendarDemo() {
+  return (
+    <MaintenanceCalendar 
+      events={sampleEvents}
+      onDateClick={(date) => console.log('Date clicked:', date)}
+      onEventClick={(event) => console.log('Event clicked:', event)}
+    />
   )
 }

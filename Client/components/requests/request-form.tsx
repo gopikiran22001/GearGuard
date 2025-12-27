@@ -28,7 +28,7 @@ export function RequestForm({ request, onSubmit, onCancel }: RequestFormProps) {
     priority: request?.priority || "medium",
   })
 
-  // Auto-fill logic: When equipment is selected, auto-fill team and technician
+
   useEffect(() => {
     if (formData.equipmentId) {
       const selectedEquipment = getEquipmentById(formData.equipmentId)

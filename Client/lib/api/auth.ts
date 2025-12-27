@@ -33,25 +33,21 @@ export interface AuthResponse {
 }
 
 export const authAPI = {
-    // Register new user
     register: async (data: RegisterData): Promise<AuthResponse> => {
         const response = await axiosInstance.post('/auth/register', data);
         return response.data;
     },
 
-    // Login user
     login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
         const response = await axiosInstance.post('/auth/login', credentials);
         return response.data;
     },
 
-    // Get current user profile
     getProfile: async (): Promise<AuthResponse> => {
         const response = await axiosInstance.get('/auth/profile');
         return response.data;
     },
 
-    // Logout user
     logout: async (): Promise<{ success: boolean; message: string }> => {
         const response = await axiosInstance.post('/auth/logout');
         return response.data;

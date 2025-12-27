@@ -1,296 +1,179 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { MainLayout } from "@/components/layout/main-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Wrench, Users, ClipboardList, AlertTriangle, CheckCircle2, Clock, ArrowRight, TrendingUp, Loader2 } from "lucide-react"
-import Link from "next/link"
-import { equipmentAPI, teamsAPI, requestsAPI } from "@/lib/api"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { toast } from "sonner"
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { ArrowRight, CheckCircle2, Factory, BarChart3, ShieldCheck, Users } from "lucide-react";
 
-export default function DashboardPage() {
-  const [stats, setStats] = useState({
-    totalEquipment: 0,
-    totalTeams: 0,
-    openRequests: 0,
-    overdueRequests: 0,
-    completedThisMonth: 0,
-  })
-  const [recentRequests, setRecentRequests] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      // Fetch all data in parallel
-      const [equipmentResponse, teamsResponse, requestsResponse] = await Promise.all([
-        equipmentAPI.getAll({ status: 'ACTIVE' }),
-        teamsAPI.getAll(),
-        requestsAPI.getAll()
-      ])
-
-      // Calculate stats
-      const equipment = equipmentResponse.success ? equipmentResponse.equipments : []
-      const teams = teamsResponse.success ? teamsResponse.teams : []
-      const requests = requestsResponse.success ? requestsResponse.requests : []
-
-      const openRequests = requests.filter(
-        (r: any) => r.status !== "REPAIRED" && r.status !== "SCRAP"
-      )
-
-      // Calculate overdue (requests past scheduled date that aren't completed)
-      const now = new Date()
-      const overdueRequests = requests.filter((r: any) => {
-        if (!r.scheduledDate || r.status === "REPAIRED" || r.status === "SCRAP") return false
-        return new Date(r.scheduledDate) < now
-      })
-
-      // Calculate completed this month
-      const thisMonth = new Date()
-      thisMonth.setDate(1)
-      thisMonth.setHours(0, 0, 0, 0)
-
-      const completedThisMonth = requests.filter((r: any) => {
-        if (r.status !== "REPAIRED" || !r.completedDate) return false
-        return new Date(r.completedDate) >= thisMonth
-      })
-
-      setStats({
-        totalEquipment: equipment.length,
-        totalTeams: teams.length,
-        openRequests: openRequests.length,
-        overdueRequests: overdueRequests.length,
-        completedThisMonth: completedThisMonth.length,
-      })
-
-      // Get recent requests (sorted by updatedAt)
-      const sortedRequests = [...requests]
-        .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-        .slice(0, 5)
-
-      // Transform for display
-      const transformedRequests = sortedRequests.map((request: any) => ({
-        id: request._id,
-        subject: request.subject,
-        equipmentName: request.equipment[0]?.name || "Unknown Equipment",
-        stage: request.status.toLowerCase().replace('_', '-'),
-        assignedTechnician: request.assignedTechnician,
-        isOverdue: overdueRequests.some((r: any) => r._id === request._id)
-      }))
-
-      setRecentRequests(transformedRequests)
-    } catch (err: any) {
-      const errorMessage = err?.message || "Failed to fetch dashboard data"
-      setError(errorMessage)
-      toast.error(errorMessage)
-    } finally {
-      setLoading(false)
-    }
-  }
+export default function LandingPage() {
+  const { user } = useAuth();
 
   return (
-    <ProtectedRoute>
-      <MainLayout title="Dashboard" subtitle="Overview of your maintenance operations">
-        {/* Error State */}
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
 
-        {/* Loading State */}
-        {loading ? (
-          <div className="flex h-64 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
+              <ShieldCheck className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-foreground">GearGuard</span>
           </div>
-        ) : (
-          <>
-            {/* Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="bg-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Active Equipment</p>
-                      <p className="mt-2 text-3xl font-bold text-foreground">{stats.totalEquipment}</p>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                      <Wrench className="h-6 w-6 text-primary" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          <nav className="flex items-center gap-4">
+            {user ? (
+              <Button asChild className="bg-primary hover:bg-primary/90 text-white">
+                <Link href="/dashboard">
+                  Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/login">Login</Link>
+                </Button>
+                <Button asChild className="bg-primary hover:bg-primary/90 text-white">
+                  <Link href="/register">Get Started</Link>
+                </Button>
+              </>
+            )}
+          </nav>
+        </div>
+      </header>
 
-              <Card className="bg-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Maintenance Teams</p>
-                      <p className="mt-2 text-3xl font-bold text-foreground">{stats.totalTeams}</p>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-chart-2/10">
-                      <Users className="h-6 w-6 text-chart-2" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
-              <Card className="bg-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Open Requests</p>
-                      <p className="mt-2 text-3xl font-bold text-foreground">{stats.openRequests}</p>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
-                      <ClipboardList className="h-6 w-6 text-accent" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Overdue</p>
-                      <p className="mt-2 text-3xl font-bold text-destructive">{stats.overdueRequests}</p>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-destructive/10">
-                      <AlertTriangle className="h-6 w-6 text-destructive" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+      <section className="relative py-24 lg:py-32 overflow-hidden">
+        <div className="absolute inset-0 bg-muted skew-y-3 transform origin-top-left -z-10 h-3/4"></div>
+        <div className="container mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-8">
+            <h1 className="text-4xl lg:text-6xl font-bold tracking-tight text-foreground">
+              Industrial Maintenance <span className="text-primary">Simplified</span>
+            </h1>
+            <p className="text-lg text-muted-foreground leading-relaxed max-w-xl">
+              Streamline your equipment maintenance, track repairs, and boost operational efficiency with our professional SaaS platform designed for modern industry.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button size="lg" className="bg-primary hover:bg-primary/90 text-white text-lg px-8 py-6 h-auto" asChild>
+                <Link href="/register">Start Free Trial</Link>
+              </Button>
+              <Button size="lg" variant="outline" className="text-lg px-8 py-6 h-auto" asChild>
+                <Link href="/demo">Request Demo</Link>
+              </Button>
             </div>
-
-            {/* Main Content Grid */}
-            <div className="mt-6 grid gap-6 lg:grid-cols-3">
-              {/* Recent Requests */}
-              <Card className="bg-card lg:col-span-2">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-lg font-semibold">Recent Requests</CardTitle>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href="/requests" className="flex items-center gap-1">
-                      View All <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {recentRequests.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">No recent requests</p>
-                    ) : (
-                      recentRequests.map((request) => (
-                        <div
-                          key={request.id}
-                          className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 p-4"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div
-                              className={`h-2 w-2 rounded-full ${request.isOverdue
-                                  ? "bg-destructive"
-                                  : request.stage === "new"
-                                    ? "bg-chart-2"
-                                    : request.stage === "in-progress"
-                                      ? "bg-accent"
-                                      : request.stage === "repaired"
-                                        ? "bg-primary"
-                                        : "bg-muted-foreground"
-                                }`}
-                            />
-                            <div>
-                              <p className="font-medium text-foreground">{request.subject}</p>
-                              <p className="text-sm text-muted-foreground">{request.equipmentName}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            {request.assignedTechnician ? (
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>{request.assignedTechnician.name.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">Unassigned</span>
-                            )}
-                            <Badge
-                              variant={
-                                request.stage === "new"
-                                  ? "secondary"
-                                  : request.stage === "in-progress"
-                                    ? "default"
-                                    : request.stage === "repaired"
-                                      ? "outline"
-                                      : "destructive"
-                              }
-                              className="capitalize"
-                            >
-                              {request.stage.replace("-", " ")}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Quick Stats */}
-              <Card className="bg-card">
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Performance</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <CheckCircle2 className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-foreground">{stats.completedThisMonth}</p>
-                      <p className="text-sm text-muted-foreground">Completed This Month</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                      <Clock className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-foreground">
-                        {stats.openRequests > 0 ? `${stats.openRequests} Active` : "All Clear"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">Current Workload</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-chart-2/10">
-                      <TrendingUp className="h-5 w-5 text-chart-2" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-foreground">
-                        {stats.overdueRequests === 0 ? "100%" : "On Track"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">System Health</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="flex gap-6 pt-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-secondary" />
+                <span>Real-time Tracking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-secondary" />
+                <span>Preventive Maintenance</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-secondary" />
+                <span>Team Management</span>
+              </div>
             </div>
-          </>
-        )}
-      </MainLayout>
-    </ProtectedRoute>
-  )
+          </div>
+          <div className="relative">
+            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-border">
+
+              <div className="bg-slate-900 h-8 flex items-center px-4 gap-2">
+                <div className="h-3 w-3 rounded-full bg-red-500"></div>
+                <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
+                <div className="h-3 w-3 rounded-full bg-green-500"></div>
+              </div>
+              <div className="p-6 bg-slate-50">
+                <div className="flex gap-4 mb-6">
+                  <div className="w-1/4 h-24 bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                    <div className="h-2 w-12 bg-slate-200 rounded mb-2"></div>
+                    <div className="h-8 w-16 bg-blue-100 rounded-lg"></div>
+                  </div>
+                  <div className="w-1/4 h-24 bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                    <div className="h-2 w-12 bg-slate-200 rounded mb-2"></div>
+                    <div className="h-8 w-16 bg-orange-100 rounded-lg"></div>
+                  </div>
+                  <div className="w-1/4 h-24 bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                    <div className="h-2 w-12 bg-slate-200 rounded mb-2"></div>
+                    <div className="h-8 w-16 bg-green-100 rounded-lg"></div>
+                  </div>
+                  <div className="w-1/4 h-24 bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                    <div className="h-2 w-12 bg-slate-200 rounded mb-2"></div>
+                    <div className="h-8 w-16 bg-red-100 rounded-lg"></div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="h-12 w-full bg-white rounded border border-slate-200"></div>
+                  <div className="h-12 w-full bg-white rounded border border-slate-200"></div>
+                  <div className="h-12 w-full bg-white rounded border border-slate-200"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <section className="py-24 bg-white">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-foreground mb-4">Everything you need to manage assets</h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">Powerful features built for maintenance teams, facility managers, and technicians.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="p-8 rounded-xl bg-card border border-border hover:shadow-lg transition-all group">
+              <div className="h-12 w-12 bg-blue-50 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <Factory className="h-6 w-6 text-secondary" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-3">Asset Management</h3>
+              <p className="text-muted-foreground">Keep detailed records of all your equipment, including warranty info, service history, and location.</p>
+            </div>
+            <div className="p-8 rounded-xl bg-card border border-border hover:shadow-lg transition-all group">
+              <div className="h-12 w-12 bg-orange-50 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <BarChart3 className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-3">Analytics & Reports</h3>
+              <p className="text-muted-foreground">Gain insights into equipment performance, team productivity, and maintenance costs with real-time charts.</p>
+            </div>
+            <div className="p-8 rounded-xl bg-card border border-border hover:shadow-lg transition-all group">
+              <div className="h-12 w-12 bg-green-50 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <Users className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-3">Team Collaboration</h3>
+              <p className="text-muted-foreground">Assign tasks to technicians, track progress, and communicate effectively within the platform.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <section className="py-24 bg-secondary text-white">
+        <div className="container mx-auto px-6 text-center">
+          <h2 className="text-3xl font-bold mb-6">Ready to optimize your maintenance workflow?</h2>
+          <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">Join thousands of industrial companies using GearGuard to reduce downtime and extend asset lifespan.</p>
+          <Button size="lg" className="bg-primary hover:bg-primary/90 text-white text-lg px-10 py-6 h-auto rounded-full" asChild>
+            <Link href="/register">Get Started Now</Link>
+          </Button>
+        </div>
+      </section>
+
+
+      <footer className="py-12 bg-slate-900 text-gray-400 border-t border-slate-800 mt-auto">
+        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
+          <div className="flex items-center gap-2 mb-4 md:mb-0">
+            <ShieldCheck className="h-6 w-6" />
+            <span className="text-lg font-bold text-white">GearGuard</span>
+          </div>
+          <div className="flex gap-8 text-sm">
+            <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="#" className="hover:text-white transition-colors">Terms of Service</Link>
+            <Link href="#" className="hover:text-white transition-colors">Contact Support</Link>
+          </div>
+          <div className="mt-4 md:mt-0 text-xs">
+            &copy; {new Date().getFullYear()} GearGuard Inc. All rights reserved.
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
 }

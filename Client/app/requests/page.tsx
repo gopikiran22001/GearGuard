@@ -4,7 +4,7 @@ import { useState, useCallback, Suspense, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { MainLayout } from "@/components/layout/main-layout"
 import { KanbanBoard } from "@/components/requests/kanban-board"
-import { RequestForm } from "@/components/requests/request-form"
+import { ModernRequestForm } from "@/components/requests/modern-request-form"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -23,8 +23,10 @@ import type { RequestStage } from "@/lib/types"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
+import { useAuth } from "@/contexts/AuthContext"
 
 function RequestsContent() {
+  const { user } = useAuth()
   const searchParams = useSearchParams()
   const equipmentFilter = searchParams.get("equipment")
 
@@ -36,6 +38,10 @@ function RequestsContent() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Role-based permissions
+  const canUpdateStatus = user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'TECHNICIAN'
+  const canAssignTechnician = user?.role === 'ADMIN' || user?.role === 'MANAGER'
+  const canViewKanban = user?.role !== 'EMPLOYEE' // Everyone except EMPLOYEE can see Kanban
 
   // Fetch requests and teams
   useEffect(() => {
@@ -108,6 +114,12 @@ function RequestsContent() {
   })
 
   const handleStageChange = useCallback(async (requestId: string, newStage: RequestStage) => {
+    // Check permissions before allowing status change
+    if (!canUpdateStatus) {
+      toast.error("You don't have permission to update request status")
+      return
+    }
+
     try {
       // Map frontend stage to backend status
       const statusMap: Record<RequestStage, string> = {
@@ -141,25 +153,15 @@ function RequestsContent() {
     } catch (err: any) {
       toast.error(err?.message || "Failed to update request status")
     }
-  }, [])
+  }, [canUpdateStatus])
 
   const handleFormSubmit = async (data: any) => {
     try {
-      const response = await requestsAPI.create({
-        subject: data.subject,
-        description: data.description,
-        equipment: [data.equipmentId],
-        maintenanceTeam: data.maintenanceTeamId,
-        requestType: data.type.toUpperCase(),
-        scheduledDate: data.scheduledDate,
-        priority: data.priority?.toUpperCase() || 'MEDIUM',
-        notes: data.notes
-      })
+      const response = await requestsAPI.create(data)
 
       if (response.success) {
         toast.success("Maintenance request created successfully!")
         setIsFormOpen(false)
-        // Refresh requests list
         fetchData()
       }
     } catch (err: any) {
@@ -169,22 +171,16 @@ function RequestsContent() {
 
   return (
     <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search requests..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 bg-secondary pl-9"
-            />
-          </div>
-
+      {/* Header with Actions */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Maintenance Requests</h1>
+          <p className="text-gray-600 mt-1">Manage and track maintenance workflow</p>
+        </div>
+        <div className="flex items-center gap-3">
           <Select value={teamFilter} onValueChange={setTeamFilter}>
-            <SelectTrigger className="w-40 bg-secondary">
-              <SelectValue placeholder="All Teams" />
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filter by team" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Teams</SelectItem>
@@ -195,46 +191,20 @@ function RequestsContent() {
               ))}
             </SelectContent>
           </Select>
-
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-40 bg-secondary">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="corrective">Corrective</SelectItem>
-              <SelectItem value="preventive">Preventive</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {equipmentFilter && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/requests">Clear Equipment Filter</Link>
-            </Button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/calendar">
-              <Calendar className="mr-2 h-4 w-4" />
-              Calendar View
-            </Link>
-          </Button>
-
+          
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
                 New Request
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create Maintenance Request</DialogTitle>
                 <DialogDescription>Create a new maintenance request for equipment repair or checkup.</DialogDescription>
               </DialogHeader>
-              <RequestForm onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} />
+              <ModernRequestForm onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} />
             </DialogContent>
           </Dialog>
         </div>
@@ -250,12 +220,46 @@ function RequestsContent() {
       {/* Loading State */}
       {loading ? (
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
         </div>
       ) : (
         <>
-          {/* Kanban Board */}
-          <KanbanBoard requests={filteredRequests} onStageChange={handleStageChange} />
+          {/* Kanban Board - Only for non-EMPLOYEE roles */}
+          {canViewKanban ? (
+            <KanbanBoard 
+              requests={filteredRequests} 
+              onStageChange={handleStageChange}
+              canUpdateStatus={canUpdateStatus}
+            />
+          ) : (
+            <div className="text-center py-12">
+              <div className="bg-blue-50 rounded-lg p-8 max-w-md mx-auto">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Request List View</h3>
+                <p className="text-gray-600 mb-4">Your maintenance requests are displayed in a simple list format.</p>
+                <div className="space-y-3">
+                  {filteredRequests.map((request) => (
+                    <div key={request.id} className="bg-white p-4 rounded-lg border border-gray-200 text-left">
+                      <h4 className="font-medium text-gray-900">{request.subject}</h4>
+                      <p className="text-sm text-gray-600 mt-1">{request.description}</p>
+                      <div className="flex items-center justify-between mt-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          request.stage === 'new' ? 'bg-blue-100 text-blue-700' :
+                          request.stage === 'in-progress' ? 'bg-orange-100 text-orange-700' :
+                          request.stage === 'repaired' ? 'bg-green-100 text-green-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {request.stage.replace('-', ' ').toUpperCase()}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(request.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

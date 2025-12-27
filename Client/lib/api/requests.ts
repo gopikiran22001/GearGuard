@@ -65,7 +65,7 @@ export interface RequestFilters {
 }
 
 export const requestsAPI = {
-    // Get all requests with optional filters
+
     getAll: async (filters?: RequestFilters): Promise<{ success: boolean; requests: MaintenanceRequest[] }> => {
         const params = new URLSearchParams();
         if (filters?.status) params.append('status', filters.status);
@@ -78,37 +78,41 @@ export const requestsAPI = {
         return response.data;
     },
 
-    // Get request by ID
+
     getById: async (id: string): Promise<{ success: boolean; request: MaintenanceRequest }> => {
         const response = await axiosInstance.get(`/requests/${id}`);
         return response.data;
     },
 
-    // Get requests by equipment ID
+
     getByEquipment: async (equipmentId: string): Promise<{ success: boolean; requests: MaintenanceRequest[] }> => {
         const response = await axiosInstance.get(`/requests/equipment/${equipmentId}`);
         return response.data;
     },
 
-    // Get calendar view (preventive maintenance)
-    getCalendar: async (): Promise<{ success: boolean; requests: MaintenanceRequest[] }> => {
-        const response = await axiosInstance.get('/requests/calendar');
+
+    getCalendar: async (month?: number, year?: number): Promise<{ success: boolean; requests: MaintenanceRequest[] }> => {
+        const currentDate = new Date();
+        const targetMonth = month || (currentDate.getMonth() + 1);
+        const targetYear = year || currentDate.getFullYear();
+
+        const response = await axiosInstance.get(`/requests/calendar?month=${targetMonth}&year=${targetYear}`);
         return response.data;
     },
 
-    // Create new request
+
     create: async (data: CreateRequestData): Promise<{ success: boolean; request: MaintenanceRequest }> => {
         const response = await axiosInstance.post('/requests', data);
         return response.data;
     },
 
-    // Update request status
+
     updateStatus: async (id: string, data: UpdateStatusData): Promise<{ success: boolean; request: MaintenanceRequest }> => {
         const response = await axiosInstance.patch(`/requests/${id}/status`, data);
         return response.data;
     },
 
-    // Assign technician to request
+
     assignTechnician: async (id: string, data: AssignTechnicianData): Promise<{ success: boolean; request: MaintenanceRequest }> => {
         const response = await axiosInstance.patch(`/requests/${id}/assign`, data);
         return response.data;

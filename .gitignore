@@ -55,3 +55,6 @@ Thumbs.db
 .eslintcache
 .stylelintcache
 *.tsbuildinfo
+
+# Generated data
+demo-data.json

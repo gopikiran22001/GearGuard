@@ -3,23 +3,31 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { AlertTriangle, Calendar, Clock, Wrench } from "lucide-react"
+import { AlertTriangle, Calendar, Clock, Wrench, CheckCircle, X } from "lucide-react"
 import type { MaintenanceRequest } from "@/lib/types"
 import { getEquipmentById, getTechnicianById, getTeamById } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 
 interface RequestCardProps {
   request: MaintenanceRequest
+  isScrap?: boolean
 }
 
 const priorityColors: Record<string, string> = {
-  low: "bg-muted text-muted-foreground",
-  medium: "bg-accent/20 text-accent",
-  high: "bg-chart-4/20 text-chart-4",
-  critical: "bg-destructive/20 text-destructive",
+  low: "bg-gray-100 text-gray-600",
+  medium: "bg-blue-100 text-blue-700",
+  high: "bg-orange-100 text-orange-700",
+  critical: "bg-red-100 text-red-700",
 }
 
-export function RequestCard({ request }: RequestCardProps) {
+const stageColors: Record<string, string> = {
+  new: "bg-blue-50 border-blue-200",
+  "in-progress": "bg-orange-50 border-orange-200",
+  repaired: "bg-green-50 border-green-200",
+  scrap: "bg-gray-100 border-gray-300",
+}
+
+export function RequestCard({ request, isScrap = false }: RequestCardProps) {
   const equipment = getEquipmentById(request.equipmentId)
   const technician = request.assignedTechnicianId ? getTechnicianById(request.assignedTechnicianId) : null
   const team = getTeamById(request.maintenanceTeamId)
@@ -27,58 +35,79 @@ export function RequestCard({ request }: RequestCardProps) {
   return (
     <Card
       className={cn(
-        "bg-card transition-all hover:border-primary/30",
-        request.isOverdue && "border-l-4 border-l-destructive",
+        "bg-card border shadow-sm hover:shadow-md transition-all",
+        request.isOverdue && !isScrap && "bg-destructive/5 border-destructive/20",
+        stageColors[request.stage] || "border-border",
+        isScrap && "opacity-75"
       )}
     >
       <CardContent className="p-4">
         <div className="space-y-3">
-          {/* Header */}
+
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1">
-              <div className="flex items-center gap-2">
-                {request.isOverdue && <AlertTriangle className="h-4 w-4 text-destructive" />}
-                <h4 className="font-medium text-foreground line-clamp-1">{request.subject}</h4>
+              <div className="flex items-center gap-2 mb-1">
+                {request.isOverdue && !isScrap && <AlertTriangle className="h-4 w-4 text-destructive" />}
+                {request.stage === 'repaired' && <CheckCircle className="h-4 w-4 text-status-repaired" />}
+                {isScrap && <X className="h-4 w-4 text-muted-foreground" />}
+                <h4 className={cn(
+                  "font-medium text-sm line-clamp-1",
+                  isScrap ? "text-muted-foreground" : "text-foreground"
+                )}>{request.subject}</h4>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{equipment?.name}</p>
+              <p className={cn(
+                "text-xs line-clamp-1",
+                isScrap ? "text-muted-foreground" : "text-muted-foreground"
+              )}>{equipment?.name}</p>
             </div>
-            <Badge className={cn("shrink-0 text-xs", priorityColors[request.priority])}>{request.priority}</Badge>
-          </div>
-
-          {/* Meta Info */}
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="outline" className="text-xs">
-              {request.type === "corrective" ? (
-                <>
-                  <Wrench className="mr-1 h-3 w-3" /> Corrective
-                </>
-              ) : (
-                <>
-                  <Calendar className="mr-1 h-3 w-3" /> Preventive
-                </>
-              )}
-            </Badge>
-            {request.scheduledDate && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {new Date(request.scheduledDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </span>
+            {!isScrap && (
+              <Badge className={cn("text-xs", priorityColors[request.priority])}>
+                {request.priority.toUpperCase()}
+              </Badge>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-between pt-2 border-t border-border">
-            <span className="text-xs text-muted-foreground">{team?.name}</span>
+
+          <div className="flex items-center justify-between pt-2">
             {technician ? (
               <div className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
                   <AvatarImage src={technician.avatar || "/placeholder.svg"} alt={technician.name} />
-                  <AvatarFallback className="text-xs">{technician.name.charAt(0)}</AvatarFallback>
+                  <AvatarFallback className={cn(
+                    "text-xs",
+                    isScrap ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+                  )}>
+                    {technician.name.charAt(0)}
+                  </AvatarFallback>
                 </Avatar>
-                <span className="text-xs text-muted-foreground">{technician.name.split(" ")[0]}</span>
+                <span className={cn(
+                  "text-xs",
+                  isScrap ? "text-muted-foreground" : "text-muted-foreground"
+                )}>
+                  {technician.name.split(" ")[0]}
+                </span>
               </div>
             ) : (
-              <span className="text-xs text-muted-foreground italic">Unassigned</span>
+              <span className={cn(
+                "text-xs",
+                isScrap ? "text-muted-foreground" : "text-muted-foreground"
+              )}>
+                {isScrap ? "Equipment scrapped" : "Unassigned"}
+              </span>
+            )}
+
+            {request.scheduledDate && !isScrap && (
+              <span className={cn(
+                "text-xs flex items-center gap-1",
+                request.isOverdue ? "text-destructive" : "text-muted-foreground"
+              )}>
+                <Clock className="h-3 w-3" />
+                {request.isOverdue ? 'Overdue' : new Date(request.scheduledDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </span>
+            )}
+
+            {isScrap && (
+              <span className="text-xs text-muted-foreground">Completed</span>
             )}
           </div>
         </div>

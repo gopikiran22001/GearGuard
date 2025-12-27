@@ -122,9 +122,12 @@ const updateRequestStatus = async (req, res) => {
       return res.status(403).json({ message: 'Access denied to this request' });
     }
 
-    // Handle scrap logic
+    // Handle scrap logic - mark equipment as scrapped
     if (status === 'SCRAP') {
-      await Equipment.findByIdAndUpdate(request.equipment, { status: 'SCRAPPED' });
+      const equipment = await Equipment.findById(request.equipment);
+      if (equipment) {
+        await equipment.markAsScrap(`Request ${request._id} marked as scrap`);
+      }
     }
 
     const updateData = { status };
@@ -203,8 +206,13 @@ const getCalendarRequests = async (req, res) => {
   try {
     const { month, year } = req.query;
     
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    // Default to current month/year if not provided
+    const currentDate = new Date();
+    const targetMonth = month ? parseInt(month) : currentDate.getMonth() + 1;
+    const targetYear = year ? parseInt(year) : currentDate.getFullYear();
+    
+    const startDate = new Date(targetYear, targetMonth - 1, 1);
+    const endDate = new Date(targetYear, targetMonth, 0);
 
     const filter = {
       scheduledDate: {
