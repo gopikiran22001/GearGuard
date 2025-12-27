@@ -12,9 +12,10 @@ const maintenanceRequestSchema = new mongoose.Schema({
     trim: true
   },
   equipment: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Equipment',
-    required: true
+    type: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Equipment'
+    }]
   },
   maintenanceTeam: {
     type: mongoose.Schema.Types.ObjectId,
@@ -37,7 +38,7 @@ const maintenanceRequestSchema = new mongoose.Schema({
   },
   scheduledDate: {
     type: Date,
-    required: function() {
+    required: function () {
       return this.requestType === 'PREVENTIVE';
     }
   },
@@ -66,7 +67,7 @@ const maintenanceRequestSchema = new mongoose.Schema({
   timestamps: true
 });
 
-maintenanceRequestSchema.pre('save', function(next) {
+maintenanceRequestSchema.pre('save', function (next) {
   if (this.status === 'REPAIRED' && !this.completedDate) {
     this.completedDate = new Date();
   }
